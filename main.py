@@ -68,8 +68,46 @@ def draw_board(screen, board, board_size, o, w, h):
     draw_stones(screen, board, o)
 
 
+# draws both currently placed stone on click and the preview of the stone
+def draw_current_stone(screen, surface, board, is_preview, o, turn, x, y, width, height):
+    surface.fill((0, 0, 0, 0))
+
+    if is_preview:
+        if not (x < 0 or x > 8 or y < 0 or y > 8) and board[x, y] == Color.EMPTY:
+            screen.fill([221, 174, 105])
+            draw_board(screen, board, 9, o, width, height)
+            pygame.draw.circle(surface, turn.value + (100,), ((y + 1) * o, (x + 1) * o), o / 2 - 1)
+            screen.blit(surface, (0, 0))
+    else:
+        if not (x < 0 or x > 8 or y < 0 or y > 8) and board[x, y] == Color.EMPTY:
+            screen.fill([221, 174, 105])
+            board[x, y] = turn
+            draw_board(screen, board, 9, o, width, height)
+            turn = Color.WHITE if turn == Color.BLACK else Color.BLACK
+    return turn
+
+
 def convert_to_board_coords(mouse_coords, o):
     return int(np.floor((mouse_coords[1] + o / 2) / o) - 1), int(np.floor((mouse_coords[0] + o / 2) / o) - 1)
+
+
+def calculate_liberties(board, x, y):
+    # we only look at up, down, left, right neighbours
+    neighbours = [(x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1)]
+    liberties = 0
+    for stone in neighbours:
+        try:
+            if board[stone] == Color.EMPTY:
+                liberties += 1
+        except IndexError:
+            continue
+
+
+def check_dead_stones(board, turn, x, y):
+    # we need more than one liberty, i.e. liberties >= 2 because the stone to be placed is considered not placed yet
+
+    already_checked_stones = [(x, y)]
+    already_checked_liberties = []
 
 
 def main():
@@ -78,6 +116,8 @@ def main():
     offset = 60
 
     screen = pygame.display.set_mode(size)
+    surface = pygame.Surface(size, pygame.SRCALPHA)
+    pygame.display.set_caption("Sam's Go")
     screen.fill([221, 174, 105])
 
     board = np.full((9, 9), fill_value=Color.EMPTY)
@@ -86,6 +126,10 @@ def main():
     turn = Color.BLACK
 
     while True:
+        mouse_pos = pygame.mouse.get_pos()
+        x, y = convert_to_board_coords(mouse_pos, offset)
+        draw_current_stone(screen, surface, board, True, offset, turn, x, y, *size)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
@@ -93,11 +137,8 @@ def main():
                 mouse_pos = pygame.mouse.get_pos()
                 x, y = convert_to_board_coords(mouse_pos, offset)
 
-                if not (x < 0 or x > 8 or y < 0 or y > 8) and board[x, y] == Color.EMPTY:
-                    screen.fill([221, 174, 105])
-                    board[x, y] = turn
-                    draw_board(screen, board, 9, offset, width, height)
-                    turn = Color.WHITE if turn == Color.BLACK else Color.BLACK
+                calculate_liberties(board, x, y)
+                turn = draw_current_stone(screen, surface, board, False, offset, turn, x, y, *size)
 
         pygame.display.flip()
 
