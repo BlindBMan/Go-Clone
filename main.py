@@ -18,6 +18,12 @@ class Color(Enum):
     WHITE = (255, 255, 255)
 
 
+score = {
+    Color.WHITE: 0,
+    Color.BLACK: 0
+}
+
+
 # class Stone:
 #     def __init__(self, board, color, group, x, y):
 #         self.board = board
@@ -168,8 +174,41 @@ def draw_suicide_move_text(screen, width, height):
     screen.blit(text, text_rect)
 
 
-def draw_players(screen, highlighted_player, o, size):
-    pass
+def draw_text(screen, text, center, color, font_size):
+    font = pygame.font.SysFont('Comic Sans MS', font_size)
+    text = font.render(text, True, color)
+    text_rect = text.get_rect()
+    text_rect.center = (center[0], center[1] - 15)
+    screen.blit(text, text_rect)
+
+
+def draw_players(screen, highlighted_player, size, right_menu_width):
+    global score
+    local_offset = 70
+
+    screen.fill([46, 44, 56], rect=(size[0], 0, right_menu_width, size[1]))
+
+    black_rect = pygame.Rect([size[0] + local_offset, local_offset, local_offset + 50, local_offset])
+    white_rect = pygame.Rect([size[0] + local_offset * 3, local_offset, local_offset + 50, local_offset])
+    turn_rect = pygame.Rect([size[0] + local_offset * 2, local_offset * 2.5, local_offset + 50, local_offset / 2])
+
+    # black player
+    pygame.draw.rect(screen, (12, 12, 12),
+                     black_rect,
+                     border_radius=15)
+    draw_text(screen, 'Black', (black_rect.centerx, black_rect.centery - 5), (255, 255, 255), 16)
+    draw_text(screen, f'{score[Color.BLACK]} captures', (black_rect.centerx, black_rect.centery + 35),
+              (255, 255, 255), 16)
+
+    # white player
+    pygame.draw.rect(screen, (239, 239, 239),
+                     white_rect,
+                     border_radius=15)
+    draw_text(screen, 'White', (white_rect.centerx, white_rect.centery - 5), (0, 0, 0), 16)
+    draw_text(screen, f'{score[Color.WHITE]} captures', (white_rect.centerx, white_rect.centery + 35), (0, 0, 0), 16)
+
+    # turn
+    draw_text(screen, f'{highlighted_player.name} to move', turn_rect.center, (255, 255, 255), 20)
 
 
 def convert_to_board_coords(mouse_coords, o):
@@ -235,10 +274,13 @@ def check_neighbours(board, turn, x, y):
                 liberties_to_draw += liberties
 
                 already_checked_stones = list(dict.fromkeys(already_checked_stones))
+                if (x, y) in already_checked_stones:
+                    already_checked_stones.remove((x, y))
 
                 # remove captured stones
                 if len(liberties) == 0:
                     captured_something = True
+                    score[turn] += len(already_checked_stones)
                     for stone in already_checked_stones:
                         board[stone] = Color.EMPTY
 
@@ -270,7 +312,7 @@ def main():
     size = 600, 600
     window_size = 1000, 600
     offset = 60
-    right_menu_start = window_size[0] - size[0]
+    right_menu_width = window_size[0] - size[0]
     turn = Color.BLACK
 
     should_draw_liberties = False
@@ -279,12 +321,12 @@ def main():
     surface = pygame.Surface(size, pygame.SRCALPHA)
     pygame.display.set_caption("Sam's Go")
     screen.fill([221, 174, 105], rect=(0, 0, *size))
-    screen.fill([46, 44, 56], rect=(size[0], 0, right_menu_start, window_size[1]))
+    screen.fill([46, 44, 56], rect=(size[0], 0, right_menu_width, window_size[1]))
 
     board = np.full((9, 9), fill_value=Color.EMPTY)
     draw_board(screen, board, 9, should_draw_liberties, offset, *size)
 
-    draw_players(screen, turn, offset, (right_menu_start, size[1]))
+    draw_players(screen, turn, size, right_menu_width)
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -314,6 +356,7 @@ def main():
                                            turn,
                                            x, y,
                                            *size)
+                    draw_players(screen, turn, size, right_menu_width)
 
         pygame.display.flip()
 
